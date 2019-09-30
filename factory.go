@@ -1,0 +1,132 @@
+package factory
+
+import (
+	"fmt"
+	"reflect"
+)
+
+// ExecCtx traks instance creation execution
+type ExecCtx struct {
+	Field    string
+	Instance interface{}
+	Factory  *Factory
+}
+
+// GeneratorFunc describes field generator signatures
+type GeneratorFunc func(ctx ExecCtx) (interface{}, error)
+
+// fieldGen is a touple that keeps together field name and fenerator function.
+type fieldGen struct {
+	fieldName string
+	generator GeneratorFunc
+}
+
+// Factory is the work horse of the pacjage that procudes instances
+type Factory struct {
+	typ       reflect.Type // type information about generated instances
+	fieldGens []fieldGen   // field / generator tuples
+}
+
+// Derive creates a new factory overriding fields generators
+// with the list provided.
+func (f *Factory) Derive(fieldGenFuncs ...FieldGenFunc) *Factory {
+	// collect fields generator to override
+	overrides := make(map[string]GeneratorFunc)
+	sample := f.new()
+	for _, fieldGenFunc := range fieldGenFuncs {
+		for _, fg := range fieldGenFunc(sample) {
+			overrides[fg.fieldName] = fg.generator
+		}
+	}
+
+	// allocate a new factory
+	newF := &Factory{f.typ, make([]fieldGen, len(f.fieldGens))}
+	// copy or override original field generators
+	for i, fg := range f.fieldGens {
+		if gen, ok := overrides[fg.fieldName]; ok {
+			fg.generator = gen
+		}
+		newF.fieldGens[i] = fg
+	}
+	return newF
+}
+
+func (f *Factory) new() reflect.Value {
+	return reflect.New(f.typ)
+}
+
+// Create makes a new instance
+func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
+	if len(fieldGenFuncs) > 0 {
+		return f.Derive(fieldGenFuncs...).Create()
+	}
+
+	// allocate a new instance
+	instance := f.new()
+
+	// create execution context
+	elem, i := instance.Elem(), instance.Interface()
+	ctx := ExecCtx{Instance: i, Factory: f}
+
+	for _, fg := range f.fieldGens {
+		// bind field name o context
+		ctx.Field = fg.fieldName
+		// find field by name
+		field := elem.FieldByName(fg.fieldName)
+		// generate field value
+		val, err := fg.generator(ctx)
+		if err != nil {
+			return nil, err
+		}
+		// assing value to field
+		field.Set(reflect.ValueOf(val))
+	}
+	return i, nil
+}
+
+// MustCreate creates or panics
+func (f *Factory) MustCreate(fieldGenFuncs ...FieldGenFunc) interface{} {
+	i, err := f.Create(fieldGenFuncs...)
+	if err != nil {
+		panic(err)
+	}
+	return i
+}
+
+// FieldGenFunc is the signature of field generator factory.
+type FieldGenFunc func(sample reflect.Value) []fieldGen
+
+// WithGen adds generator function to factory.
+// WithGen returns a function that generates an array of field generators,
+// each of each has embedded check for field is present in the objct being created and can be set.
+func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
+	return func(sample reflect.Value) []fieldGen {
+		gens := []fieldGen{}
+		for _, fieldName := range fields {
+			// check that field exists in generated model
+			field := sample.Elem().FieldByName(fieldName)
+			if !field.IsValid() {
+				panic(fmt.Errorf("field %q not found in %s", fieldName, sample.Type().Name()))
+			}
+			// and can be set
+			if !field.CanSet() {
+				panic(fmt.Errorf("field %q can not be set in %s", fieldName, sample.Type().Name()))
+			}
+			gens = append(gens, fieldGen{fieldName, g})
+		}
+		return gens
+	}
+}
+
+// NewFactory is factory constructor
+func NewFactory(model interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
+	f := &Factory{typ: reflect.TypeOf(model)}
+	// sample is used to validate during the factory contruction process that all
+	// provided fields exist in a given model and can be set.
+	sample := f.new()
+	// create field generators
+	for _, makeFieldGen := range fieldGenFuncs {
+		f.fieldGens = append(f.fieldGens, makeFieldGen(sample)...)
+	}
+	return f
+}
