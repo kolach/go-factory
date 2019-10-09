@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	uuid "github.com/satori/go.uuid"
 
-	. "github.com/kolach/factory"
+	. "github.com/kolach/go-factory"
 	. "github.com/kolach/gomega-matchers"
 )
 
@@ -36,13 +36,13 @@ var _ = Describe("Factory", func() {
 
 	BeforeEach(func() {
 		// capitalize username
-		firstName := func(ctx ExecCtx) (interface{}, error) {
+		firstName := func(ctx Ctx) (interface{}, error) {
 			return strings.Title(ctx.Instance.(*User).Username), nil
 		}
 
 		// username + '@' + domain
 		email := func(domain string) GeneratorFunc {
-			return func(ctx ExecCtx) (interface{}, error) {
+			return func(ctx Ctx) (interface{}, error) {
 				user := ctx.Instance.(*User)
 				return user.Username + "@" + domain, nil
 			}
@@ -51,7 +51,7 @@ var _ = Describe("Factory", func() {
 		addrFact = NewFactory(
 			Address{},
 			Use(SeqSelect("CDMX", "Playa del Carmen")).For("City"),
-			Use(func(ctx ExecCtx) (interface{}, error) {
+			Use(func(ctx Ctx) (interface{}, error) {
 				addr := ctx.Instance.(*Address)
 				switch addr.City {
 				case "CDMX":

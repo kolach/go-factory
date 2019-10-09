@@ -5,23 +5,23 @@ import (
 	"reflect"
 )
 
-// ExecCtx traks instance creation execution
-type ExecCtx struct {
-	Field    string
-	Instance interface{}
-	Factory  *Factory
+// Ctx is the context in wich the field value is being generated
+type Ctx struct {
+	Field    string      // current field name for which the value is generated
+	Instance interface{} // the result instance to that the field belongs
+	Factory  *Factory    // the reference to the Factory
 }
 
 // GeneratorFunc describes field generator signatures
-type GeneratorFunc func(ctx ExecCtx) (interface{}, error)
+type GeneratorFunc func(ctx Ctx) (interface{}, error)
 
-// fieldGen is a touple that keeps together field name and fenerator function.
+// fieldGen is a tuple that keeps together field name and generator function.
 type fieldGen struct {
 	fieldName string
 	generator GeneratorFunc
 }
 
-// Factory is the work horse of the pacjage that procudes instances
+// Factory is the work horse of the package that produces instances
 type Factory struct {
 	typ       reflect.Type // type information about generated instances
 	fieldGens []fieldGen   // field / generator tuples
@@ -66,7 +66,7 @@ func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
 
 	// create execution context
 	elem, i := instance.Elem(), instance.Interface()
-	ctx := ExecCtx{Instance: i, Factory: f}
+	ctx := Ctx{Instance: i, Factory: f}
 
 	for _, fg := range f.fieldGens {
 		// bind field name o context
@@ -78,8 +78,15 @@ func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		// assing value to field
-		field.Set(reflect.ValueOf(val))
+
+		// assign value to field
+		valueof := reflect.ValueOf(val)
+		// deref pointer if field value is not a pointer
+		if field.Kind() != reflect.Ptr && valueof.Kind() == reflect.Ptr {
+			valueof = valueof.Elem()
+		}
+
+		field.Set(valueof)
 	}
 	return i, nil
 }
@@ -98,7 +105,7 @@ type FieldGenFunc func(sample reflect.Value) []fieldGen
 
 // WithGen adds generator function to factory.
 // WithGen returns a function that generates an array of field generators,
-// each of each has embedded check for field is present in the objct being created and can be set.
+// each of which has embedded check for field is present in the object being created and can be set.
 func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 	return func(sample reflect.Value) []fieldGen {
 		gens := []fieldGen{}
@@ -121,7 +128,7 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 // NewFactory is factory constructor
 func NewFactory(model interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
 	f := &Factory{typ: reflect.TypeOf(model)}
-	// sample is used to validate during the factory contruction process that all
+	// sample is used to validate during the factory construction process that all
 	// provided fields exist in a given model and can be set.
 	sample := f.new()
 	// create field generators

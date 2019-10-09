@@ -9,7 +9,7 @@ import (
 
 // Value converts passed value into static generator
 func Value(i interface{}) GeneratorFunc {
-	return func(ExecCtx) (interface{}, error) {
+	return func(Ctx) (interface{}, error) {
 		return i, nil
 	}
 }
@@ -49,7 +49,7 @@ func Func(f interface{}, args ...interface{}) GeneratorFunc {
 		in[i] = reflect.ValueOf(arg)
 	}
 
-	return func(ExecCtx) (interface{}, error) {
+	return func(Ctx) (interface{}, error) {
 		r := val.Call(in)
 		if len(r) == 1 || r[1].IsNil() {
 			return r[0].Interface(), nil
@@ -77,7 +77,7 @@ func Rnd(max int) func() int {
 // Select picks a value from options
 func Select(f func(int) func() int, options ...interface{}) GeneratorFunc {
 	g := f(len(options))
-	return func(ExecCtx) (interface{}, error) {
+	return func(Ctx) (interface{}, error) {
 		return options[g()], nil
 	}
 }
@@ -96,29 +96,29 @@ func RndSelect(options ...interface{}) GeneratorFunc {
 func NewGenerator(i interface{}, args ...interface{}) GeneratorFunc {
 	// for usecases like:
 	// func myGenFunc() GeneratorFunc {
-	//   return func(ExecCtx) (interface{}, error) { ...  }
+	//   return func(Ctx) (interface{}, error) { ...  }
 	// }
 	if genFunc, ok := i.(GeneratorFunc); ok {
 		return genFunc
 	}
 
 	// for usecases like:
-	// func myGenFunc() func(ExecCtx) (interface{}, error) {
-	//   return func(ExecCtx) (interface{}, error) { ...  }
+	// func myGenFunc() func(Ctx) (interface{}, error) {
+	//   return func(Ctx) (interface{}, error) { ...  }
 	// }
 	//
 	// or in-place declarations:
 	// f := NewFactory(
 	//   User{},
-	//   Use(func(ctx ExecCtx) (interface{}, error) { ... }),
+	//   Use(func(ctx Ctx) (interface{}, error) { ... }),
 	// )
-	if genFunc, ok := i.(func(ExecCtx) (interface{}, error)); ok {
+	if genFunc, ok := i.(func(Ctx) (interface{}, error)); ok {
 		return genFunc
 	}
 
 	// if i is a factory use Create method
 	if fact, ok := i.(*Factory); ok {
-		return func(ExecCtx) (interface{}, error) {
+		return func(Ctx) (interface{}, error) {
 			return fact.Create()
 		}
 	}

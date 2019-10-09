@@ -1,4 +1,4 @@
-module github.com/kolach/factory
+module github.com/kolach/go-factory
 
 go 1.12
 
@@ -8,4 +8,5 @@ require (
 	github.com/onsi/ginkgo v1.10.1
 	github.com/onsi/gomega v1.7.0
 	github.com/satori/go.uuid v1.2.0
+	golang.org/x/tools/gopls v0.1.7 // indirect
 )
