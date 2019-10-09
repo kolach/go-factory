@@ -180,3 +180,56 @@ userFactory := NewFactory(
   Use(addressFactory).For("BillingAddress")
 )
 ```
+
+### Overriding field generators
+
+Suppose we have a user factory:
+
+```go
+userFactory := NewFactory(
+  User{},
+  Use(randomdata.FirstName, randomdata.Male).For("FirstName"),
+  Use(randomdata.LastName, randomdata.Male).For("LastName"),
+  Use(randomdata.Number, 25, 50).For("Age"),
+  Use(true, false).For("Married"),
+  Use(randomdata.Email).For("Email"),
+  Use(addressFactory).For("Address")
+  Use(addressFactory).For("BillingAddress")
+)
+```
+
+And we need to generate a user with female first and last names. We can easily do it overriding the
+field generators on `Create` or `MustCreate` calls:
+
+```go
+user := userFactory.MustCreate(
+  Use(randomdata.FirstName, randomdata.Female).For("FirstName"),
+  Use(randomdata.LastName, randomdata.Female).For("LastName"),
+).(*User)
+```
+
+### Creating a new factory deriving from existing one
+
+A new factory may be created deriving from existing one. Suppose we have a factory:
+
+```go
+addressFactory := NewFactory(
+  Address{},
+  Use(randomdata.Country, randomdata.FullCountry).For("Country"),
+  Use(randomdata.State, randomdata.Large).For("State"),
+  Use(randomdata.City).For("City"),
+  Use(randomdata.Street).For("Street"),
+)
+```
+
+And we want to have such a factory that generates US, New York addresses. It can be done with factory's `Derive` method:
+
+```go
+nyAddressFactory := addressFactory.Derive(
+  Use("US").For("Country"),
+  Use("New York").For("State"),
+  Use("New York").For("City"),
+)
+
+nyAddress := nyAddressFactory.MustCreate().(*Address)
+```
