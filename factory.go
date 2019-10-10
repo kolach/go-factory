@@ -3,6 +3,8 @@ package factory
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/ulule/deepcopier"
 )
 
 // Ctx is the context in wich the field value is being generated
@@ -23,6 +25,7 @@ type fieldGen struct {
 
 // Factory is the work horse of the package that produces instances
 type Factory struct {
+	proto     interface{}
 	typ       reflect.Type // type information about generated instances
 	fieldGens []fieldGen   // field / generator tuples
 }
@@ -40,7 +43,7 @@ func (f *Factory) Derive(fieldGenFuncs ...FieldGenFunc) *Factory {
 	}
 
 	// allocate a new factory
-	newF := &Factory{f.typ, make([]fieldGen, len(f.fieldGens))}
+	newF := &Factory{typ: f.typ, proto: f.proto, fieldGens: make([]fieldGen, len(f.fieldGens))}
 	// copy or override original field generators
 	for i, fg := range f.fieldGens {
 		if gen, ok := overrides[fg.fieldName]; ok {
@@ -70,6 +73,12 @@ func (f *Factory) MustSetFields(i interface{}, fieldGenFuncs ...FieldGenFunc) {
 func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFunc) error {
 	// create execution context
 	elem, i := instance.Elem(), instance.Interface()
+
+	// copy prototype properties
+	if err := deepcopier.Copy(i).From(f.proto); err != nil {
+		return err
+	}
+
 	ctx := Ctx{Instance: i, Factory: f}
 
 	for _, fg := range f.fieldGens {
@@ -143,8 +152,8 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 }
 
 // NewFactory is factory constructor
-func NewFactory(model interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
-	f := &Factory{typ: reflect.TypeOf(model)}
+func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
+	f := &Factory{typ: reflect.TypeOf(proto), proto: proto}
 	// sample is used to validate during the factory construction process that all
 	// provided fields exist in a given model and can be set.
 	sample := f.new()

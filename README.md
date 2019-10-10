@@ -52,7 +52,7 @@ user := userFact.MustCreate().(*User)
 Factory's `Create` and `MustCreate` methods return `interface{}` so you need to cast it to `*User` to use.
 
 The factory above creates a user with empty fields which is pretty useless.
-To assign some values to then fields the field generators must be registered in the factory.
+To assign some values to the fields the field generators must be registered in the factory.
 
 ### Field generators
 
@@ -242,3 +242,30 @@ nyAddressFactory := addressFactory.Derive(
 
 nyAddress := nyAddressFactory.MustCreate().(*Address)
 ```
+
+## Prototype object
+
+The first parameter to `NewFactory` function is actually the prototype for the object to produce. It's not necessary must
+be an emprt object like in all the examples above. Here is an example then it has some values in fields:
+
+```go
+userFactory := NewFactory(
+  User{Age: 32, Married: true},
+  Use(randomdata.FirstName, randomdata.Female).For("FirstName"),
+  Use(randomdata.LastName, randomdata.Female).For("LastName"),
+)
+```
+
+Like you can guess all the users produced by the factory will have `Age = 32` and `Married = true`.
+The factory above equals to:
+
+```go
+userFactory := NewFactory(
+  User{},
+  Use(randomdata.FirstName, randomdata.Female).For("FirstName"),
+  Use(randomdata.LastName, randomdata.Female).For("LastName"),
+  Use(32).For("Age"),
+  Use(true).For("Married"),
+)
+```
+

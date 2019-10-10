@@ -77,7 +77,7 @@ var _ = Describe("Factory", func() {
 		)
 	})
 
-	It("should fill instance fields", func() {
+	It("should set instance fields", func() {
 		var u User
 		err := userFact.SetFields(&u)
 		Ω(err).Should(BeNil())
@@ -90,7 +90,20 @@ var _ = Describe("Factory", func() {
 		Ω(u.Age).Should(And(BeNumerically(">=", 20), BeNumerically("<", 25)))
 		Ω(u.Address.City).Should(Equal("CDMX"))
 		Ω(u.Address.Street).Should(Equal("Mexicali"))
+	})
 
+	It("should copy prototype properties", func() {
+		proto := User{Married: true, Age: 45, FirstName: "Nick"}
+		userFact := NewFactory(proto, Use("Smith").For("LastName"))
+
+		var user User
+		err := userFact.SetFields(&user)
+
+		Ω(err).Should(BeNil())
+		Ω(user.Married).Should(Equal(proto.Married))
+		Ω(user.Age).Should(Equal(proto.Age))
+		Ω(user.FirstName).Should(Equal(proto.FirstName))
+		Ω(user.LastName).Should(Equal("Smith"))
 	})
 
 	It("should create instances of given type", func() {
