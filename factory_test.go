@@ -77,6 +77,22 @@ var _ = Describe("Factory", func() {
 		)
 	})
 
+	It("should fill instance fields", func() {
+		var u User
+		err := userFact.SetFields(&u)
+		Ω(err).Should(BeNil())
+		Ω(u.ID).ShouldNot(BeNil())
+		Ω(u.Username).Should(BelongTo("john", "james", "bob", "paul"))
+		Ω(u.FirstName).Should(Equal(strings.Title(u.Username)))
+		Ω(u.LastName).Should(BelongTo("Doe", "Smith", "Roy"))
+		Ω(u.Email).Should(Equal(u.Username + "@6river.com"))
+		Ω(u.Married).Should(BeTrue())
+		Ω(u.Age).Should(And(BeNumerically(">=", 20), BeNumerically("<", 25)))
+		Ω(u.Address.City).Should(Equal("CDMX"))
+		Ω(u.Address.Street).Should(Equal("Mexicali"))
+
+	})
+
 	It("should create instances of given type", func() {
 		u, ok := userFact.MustCreate().(*User)
 		Ω(ok).Should(BeTrue())

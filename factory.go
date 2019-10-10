@@ -55,15 +55,19 @@ func (f *Factory) new() reflect.Value {
 	return reflect.New(f.typ)
 }
 
-// Create makes a new instance
-func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
-	if len(fieldGenFuncs) > 0 {
-		return f.Derive(fieldGenFuncs...).Create()
+// SetFields fills in the struct instance fields
+func (f *Factory) SetFields(i interface{}, fieldGenFuncs ...FieldGenFunc) error {
+	return f.setFields(reflect.ValueOf(i), fieldGenFuncs...)
+}
+
+// MustSetFields calls SetFields and panics on error
+func (f *Factory) MustSetFields(i interface{}, fieldGenFuncs ...FieldGenFunc) {
+	if err := f.SetFields(i, fieldGenFuncs...); err != nil {
+		panic(err)
 	}
+}
 
-	// allocate a new instance
-	instance := f.new()
-
+func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFunc) error {
 	// create execution context
 	elem, i := instance.Elem(), instance.Interface()
 	ctx := Ctx{Instance: i, Factory: f}
@@ -76,7 +80,7 @@ func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
 		// generate field value
 		val, err := fg.generator(ctx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		// assign value to field
@@ -88,7 +92,20 @@ func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
 
 		field.Set(valueof)
 	}
-	return i, nil
+	return nil
+}
+
+// Create makes a new instance
+func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
+	if len(fieldGenFuncs) > 0 {
+		return f.Derive(fieldGenFuncs...).Create()
+	}
+	// allocate a new instance
+	instance := f.new()
+	if err := f.setFields(instance, fieldGenFuncs...); err != nil {
+		return nil, err
+	}
+	return instance.Interface(), nil
 }
 
 // MustCreate creates or panics

@@ -31,7 +31,16 @@ userFact := NewFactory(User{}}
 And then you can use it like:
 
 ```go
-// create object, check error, cast to *User
+// allocate the object yourself and set the fields using factory
+var user User
+if err := userFact.SetFields(&user); err != nil {
+  panic(err)
+}
+
+// or use MustSetFields that panics on error
+userFact.MustSetFields(&user)
+
+// or use factory Create method and cast the result to *User
 if i, err := userFact.Create(); err == nil {
   user := i.(*User)
 }
