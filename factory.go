@@ -74,9 +74,11 @@ func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFun
 	// create execution context
 	elem, i := instance.Elem(), instance.Interface()
 
-	// copy prototype properties
-	if err := deepcopier.Copy(i).From(f.proto); err != nil {
-		return err
+	// copy prototype properties if available
+	if f.proto != nil {
+		if err := deepcopier.Copy(i).From(f.proto); err != nil {
+			return err
+		}
 	}
 
 	ctx := Ctx{Instance: i, Factory: f}
@@ -153,7 +155,13 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 
 // NewFactory is factory constructor
 func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
-	f := &Factory{typ: reflect.TypeOf(proto), proto: proto}
+	typ := reflect.TypeOf(proto)
+	if proto == reflect.Zero(typ).Interface() {
+		// set proto to nil as it's zero object
+		proto = nil
+	}
+
+	f := &Factory{typ: typ, proto: proto}
 	// sample is used to validate during the factory construction process that all
 	// provided fields exist in a given model and can be set.
 	sample := f.new()
