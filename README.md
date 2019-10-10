@@ -251,8 +251,6 @@ be an emprt object like in all the examples above. Here is an example then it ha
 ```go
 userFactory := NewFactory(
   User{Age: 32, Married: true},
-  Use(randomdata.FirstName, randomdata.Female).For("FirstName"),
-  Use(randomdata.LastName, randomdata.Female).For("LastName"),
 )
 ```
 
@@ -262,10 +260,10 @@ The factory above equals to:
 ```go
 userFactory := NewFactory(
   User{},
-  Use(randomdata.FirstName, randomdata.Female).For("FirstName"),
-  Use(randomdata.LastName, randomdata.Female).For("LastName"),
   Use(32).For("Age"),
   Use(true).For("Married"),
 )
 ```
 
+It's worth to mention that using the prototype object makes the factory work slower.
+The version that uses field generators is currently a prefferable way to set field values.

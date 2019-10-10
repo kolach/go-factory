@@ -1,10 +1,10 @@
 package factory
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"reflect"
+
+	"github.com/kolach/deepcopy"
 )
 
 // Ctx is the context in wich the field value is being generated
@@ -25,7 +25,7 @@ type fieldGen struct {
 
 // Factory is the work horse of the package that produces instances
 type Factory struct {
-	proto     []byte
+	proto     interface{}
 	typ       reflect.Type // type information about generated instances
 	fieldGens []fieldGen   // field / generator tuples
 }
@@ -76,11 +76,7 @@ func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFun
 
 	// copy prototype properties if available
 	if f.proto != nil {
-		buf := bytes.NewReader(f.proto)
-		dec := gob.NewDecoder(buf)
-		if err := dec.Decode(i); err != nil {
-			return err
-		}
+		deepcopy.CopyInto(f.proto, i)
 	}
 
 	ctx := Ctx{Instance: i, Factory: f}
@@ -159,16 +155,11 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
 	typ := reflect.TypeOf(proto)
 
-	var b []byte
-	if proto != reflect.Zero(typ).Interface() {
-		var buf bytes.Buffer
-		enc := gob.NewEncoder(&buf)
-		enc.Encode(proto)
-		// set proto to nil as it's zero object
-		b = buf.Bytes()
+	if proto == reflect.Zero(typ).Interface() {
+		proto = nil
 	}
 
-	f := &Factory{typ: typ, proto: b}
+	f := &Factory{typ: typ, proto: proto}
 	// sample is used to validate during the factory construction process that all
 	// provided fields exist in a given model and can be set.
 	sample := f.new()
