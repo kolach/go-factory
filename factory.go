@@ -1,7 +1,8 @@
 package factory
 
 import (
-	"encoding/json"
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"reflect"
 )
@@ -75,7 +76,9 @@ func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFun
 
 	// copy prototype properties if available
 	if f.proto != nil {
-		if err := json.Unmarshal(f.proto, i); err != nil {
+		buf := bytes.NewReader(f.proto)
+		dec := gob.NewDecoder(buf)
+		if err := dec.Decode(i); err != nil {
 			return err
 		}
 	}
@@ -158,8 +161,11 @@ func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
 
 	var b []byte
 	if proto != reflect.Zero(typ).Interface() {
+		var buf bytes.Buffer
+		enc := gob.NewEncoder(&buf)
+		enc.Encode(proto)
 		// set proto to nil as it's zero object
-		b, _ = json.Marshal(proto)
+		b = buf.Bytes()
 	}
 
 	f := &Factory{typ: typ, proto: b}
