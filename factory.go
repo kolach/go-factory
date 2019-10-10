@@ -1,10 +1,9 @@
 package factory
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
-
-	"github.com/ulule/deepcopier"
 )
 
 // Ctx is the context in wich the field value is being generated
@@ -25,7 +24,7 @@ type fieldGen struct {
 
 // Factory is the work horse of the package that produces instances
 type Factory struct {
-	proto     interface{}
+	proto     []byte
 	typ       reflect.Type // type information about generated instances
 	fieldGens []fieldGen   // field / generator tuples
 }
@@ -76,7 +75,7 @@ func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFun
 
 	// copy prototype properties if available
 	if f.proto != nil {
-		if err := deepcopier.Copy(i).From(f.proto); err != nil {
+		if err := json.Unmarshal(f.proto, i); err != nil {
 			return err
 		}
 	}
@@ -156,12 +155,14 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 // NewFactory is factory constructor
 func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
 	typ := reflect.TypeOf(proto)
-	if proto == reflect.Zero(typ).Interface() {
+
+	var b []byte
+	if proto != reflect.Zero(typ).Interface() {
 		// set proto to nil as it's zero object
-		proto = nil
+		b, _ = json.Marshal(proto)
 	}
 
-	f := &Factory{typ: typ, proto: proto}
+	f := &Factory{typ: typ, proto: b}
 	// sample is used to validate during the factory construction process that all
 	// provided fields exist in a given model and can be set.
 	sample := f.new()
