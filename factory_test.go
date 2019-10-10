@@ -2,6 +2,7 @@ package factory_test
 
 import (
 	"strings"
+	"testing"
 
 	randomdata "github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo"
@@ -134,3 +135,32 @@ var _ = Describe("Factory", func() {
 		Ω(u.Age).Should(Equal(10))
 	})
 })
+
+func BenchmarkProto(b *testing.B) {
+	f := NewFactory(User{
+		FirstName: "John",
+		LastName:  "Smith",
+		Username:  "john",
+		Email:     "john@hotmail.com",
+		Age:       30,
+		Married:   false,
+	})
+	for i := 0; i < b.N; i++ {
+		f.MustCreate()
+	}
+}
+
+func BenchmarkProtoEmpty(b *testing.B) {
+	f := NewFactory(
+		User{},
+		Use("John").For("FirstName"),
+		Use("Smith").For("LastName"),
+		Use("john").For("Username"),
+		Use("john@hotmail.com").For("Email"),
+		Use(30).For("Age"),
+		Use(false).For("Married"),
+	)
+	for i := 0; i < b.N; i++ {
+		f.MustCreate()
+	}
+}
