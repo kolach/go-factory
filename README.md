@@ -289,8 +289,8 @@ The package also supports a builder pattern to create the factory but looks too 
 Anyway here is an example:
 
 ```go
-  User{},
 f := factory.NewBuilder(
+  User{},
 ).Use("John").For(
   "FirstName",
 ).And("Smith", "Doe", "Milner").For(
