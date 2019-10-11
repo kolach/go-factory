@@ -30,25 +30,37 @@ type Factory struct {
 // Derive creates a new factory overriding fields generators
 // with the list provided.
 func (f *Factory) Derive(fieldGenFuncs ...FieldGenFunc) *Factory {
-	// collect fields generator to override
-	overrides := make(map[string]GeneratorFunc)
+	// Create new generators and lookup map to fast find generator by firld name
+	newGenList := make([]fieldGen, 0, len(fieldGenFuncs))
+	newGensMap := make(map[string]GeneratorFunc)
 	sample := f.new()
 	for _, fieldGenFunc := range fieldGenFuncs {
 		for _, fg := range fieldGenFunc(sample) {
-			overrides[fg.fieldName] = fg.generator
+			newGensMap[fg.fieldName] = fg.generator
+			newGenList = append(newGenList, fg)
 		}
 	}
 
-	// allocate a new factory
-	newF := &Factory{typ: f.typ, fieldGens: make([]fieldGen, len(f.fieldGens))}
-	// copy or override original field generators
+	// result generators for a new factory
+	fieldGens := make([]fieldGen, len(f.fieldGens))
+
+	// 1. copy or override original field generators
 	for i, fg := range f.fieldGens {
-		if gen, ok := overrides[fg.fieldName]; ok {
+		if gen, ok := newGensMap[fg.fieldName]; ok {
+			delete(newGensMap, fg.fieldName)
 			fg.generator = gen
 		}
-		newF.fieldGens[i] = fg
+		fieldGens[i] = fg
 	}
-	return newF
+
+	// 2. append new field generators
+	for _, fg := range newGenList {
+		if _, ok := newGensMap[fg.fieldName]; ok {
+			fieldGens = append(fieldGens, fg)
+		}
+	}
+
+	return &Factory{typ: f.typ, fieldGens: fieldGens}
 }
 
 func (f *Factory) new() reflect.Value {
@@ -68,6 +80,10 @@ func (f *Factory) MustSetFields(i interface{}, fieldGenFuncs ...FieldGenFunc) {
 }
 
 func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFunc) error {
+	if len(fieldGenFuncs) > 0 {
+		return f.Derive(fieldGenFuncs...).setFields(instance)
+	}
+
 	// create execution context
 	elem, i := instance.Elem(), instance.Interface()
 
@@ -98,9 +114,6 @@ func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFun
 
 // Create makes a new instance
 func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
-	if len(fieldGenFuncs) > 0 {
-		return f.Derive(fieldGenFuncs...).Create()
-	}
 	// allocate a new instance
 	instance := f.new()
 	if err := f.setFields(instance, fieldGenFuncs...); err != nil {
@@ -143,31 +156,38 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 	}
 }
 
-func protogens(proto interface{}) []FieldGenFunc {
+// ProtoGens takes a proto object and decomposes it into slice of field generators
+// for each proto object field that has non-zero value.
+func ProtoGens(proto interface{}) (fieldGenFuncs []FieldGenFunc) {
 	typ := reflect.TypeOf(proto)
 	if proto == reflect.Zero(typ).Interface() {
-		return nil
+		return
 	}
 
 	// if proto object is non-zero type,
 	// walk object fields and create field generator for each field with non-zero value
-	fieldGenFuncs := []FieldGenFunc{}
 	val := reflect.ValueOf(proto)
 	for i := 0; i < typ.NumField(); i++ {
 		sField := typ.Field(i)
 		fVal := val.Field(i).Interface()
 		if fVal != reflect.Zero(sField.Type).Interface() {
-			fieldGenFuncs = append(fieldGenFuncs, Use(fVal).For(sField.Name))
+			fGen := Use(fVal).For(sField.Name)
+			if fieldGenFuncs != nil {
+				fieldGenFuncs = append(fieldGenFuncs, fGen)
+			} else {
+				fieldGenFuncs = []FieldGenFunc{fGen}
+			}
 		}
 	}
-	return fieldGenFuncs
+	return
 }
 
 // NewFactory is factory constructor
 func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
 	typ := reflect.TypeOf(proto)
 
-	if protogens := protogens(proto); len(protogens) > 0 {
+	if protogens := ProtoGens(proto); len(protogens) > 0 {
+		// prepend field generators with proto generators if there are some
 		fieldGenFuncs = append(protogens, fieldGenFuncs...)
 	}
 
