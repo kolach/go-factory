@@ -3,8 +3,6 @@ package factory
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/kolach/deepcopy"
 )
 
 // Ctx is the context in wich the field value is being generated
@@ -25,7 +23,6 @@ type fieldGen struct {
 
 // Factory is the work horse of the package that produces instances
 type Factory struct {
-	proto     interface{}
 	typ       reflect.Type // type information about generated instances
 	fieldGens []fieldGen   // field / generator tuples
 }
@@ -43,7 +40,7 @@ func (f *Factory) Derive(fieldGenFuncs ...FieldGenFunc) *Factory {
 	}
 
 	// allocate a new factory
-	newF := &Factory{typ: f.typ, proto: f.proto, fieldGens: make([]fieldGen, len(f.fieldGens))}
+	newF := &Factory{typ: f.typ, fieldGens: make([]fieldGen, len(f.fieldGens))}
 	// copy or override original field generators
 	for i, fg := range f.fieldGens {
 		if gen, ok := overrides[fg.fieldName]; ok {
@@ -73,11 +70,6 @@ func (f *Factory) MustSetFields(i interface{}, fieldGenFuncs ...FieldGenFunc) {
 func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFunc) error {
 	// create execution context
 	elem, i := instance.Elem(), instance.Interface()
-
-	// copy prototype properties if available
-	if f.proto != nil {
-		deepcopy.CopyInto(f.proto, i)
-	}
 
 	ctx := Ctx{Instance: i, Factory: f}
 
@@ -151,18 +143,41 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 	}
 }
 
+func protogens(proto interface{}) []FieldGenFunc {
+	typ := reflect.TypeOf(proto)
+	if proto == reflect.Zero(typ).Interface() {
+		return nil
+	}
+
+	// if proto object is non-zero type,
+	// walk object fields and create field generator for each field with non-zero value
+	fieldGenFuncs := []FieldGenFunc{}
+	val := reflect.ValueOf(proto)
+	for i := 0; i < typ.NumField(); i++ {
+		sField := typ.Field(i)
+		fVal := val.Field(i).Interface()
+		if fVal != reflect.Zero(sField.Type).Interface() {
+			fieldGenFuncs = append(fieldGenFuncs, Use(fVal).For(sField.Name))
+		}
+	}
+	return fieldGenFuncs
+}
+
 // NewFactory is factory constructor
 func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
 	typ := reflect.TypeOf(proto)
 
-	if proto == reflect.Zero(typ).Interface() {
-		proto = nil
+	if protogens := protogens(proto); len(protogens) > 0 {
+		fieldGenFuncs = append(protogens, fieldGenFuncs...)
 	}
 
-	f := &Factory{typ: typ, proto: proto}
+	f := &Factory{typ: typ}
+
 	// sample is used to validate during the factory construction process that all
 	// provided fields exist in a given model and can be set.
 	sample := f.new()
+	// sample.Elem().Set(reflect.ValueOf(proto))
+
 	// create field generators
 	for _, makeFieldGen := range fieldGenFuncs {
 		f.fieldGens = append(f.fieldGens, makeFieldGen(sample)...)
