@@ -1,6 +1,7 @@
 package factory_test
 
 import (
+	"errors"
 	"strings"
 
 	randomdata "github.com/Pallinder/go-randomdata"
@@ -15,6 +16,10 @@ import (
 type Address struct {
 	City   string
 	Street string
+
+	// to check unexported field do not break or influences on anything
+	i int
+	s string
 }
 
 type User struct {
@@ -25,8 +30,12 @@ type User struct {
 	Email     string
 	Age       int
 	Married   bool
-	Address   *Address
+	Address   Address
 	Comment   string
+
+	// to check unexported field do not break or influences on anything
+	i int
+	s string
 }
 
 var _ = Describe("Factory", func() {
@@ -94,7 +103,7 @@ var _ = Describe("Factory", func() {
 	})
 
 	It("should copy prototype properties", func() {
-		proto := User{Married: true, Age: 45, FirstName: "Nick"}
+		proto := User{Married: true, Age: 45, FirstName: "Nick", i: 5}
 		userFact := NewFactory(proto, Use("Smith").For("LastName"))
 
 		var user User
@@ -144,5 +153,74 @@ var _ = Describe("Factory", func() {
 		// now check it all
 		Ω(u.Username).Should(Equal("jane"))
 		Ω(u.Comment).Should(Equal("Blahblahblah")) // check new generator
+	})
+
+	It("should support generator funcs that return error as second value", func() {
+		_, err := userFact.Create(
+			Use(func() (string, error) {
+				return "John", errors.New("boom")
+			}).For("FirstName"),
+		)
+		Ω(err).ShouldNot(BeNil())
+	})
+
+	It("should panic if second return value is not of error type", func() {
+		call := func() {
+			userFact.Create(
+				Use(func() (string, int) {
+					return "John", 1
+				}).For("FirstName"),
+			)
+		}
+		Ω(call).Should(Panic())
+	})
+
+	It("should panic if generator function return more than 2 values", func() {
+		call := func() {
+			userFact.Create(
+				Use(func() (string, int, bool) {
+					return "John", 1, true
+				}).For("FirstName"),
+			)
+		}
+		Ω(call).Should(Panic())
+	})
+
+	It("should panic if generator function arity is not satisfied", func() {
+		call := func() {
+			userFact.Create(
+				Use(func(i int, b bool) (string, int, bool) {
+					return "John", 1, true
+				}, 4).For("FirstName"),
+			)
+		}
+		Ω(call).Should(Panic())
+	})
+
+	It("should panic on attempt to set unexported field", func() {
+		Ω(func() { userFact.Create(Use(1).For("i")) }).Should(Panic())
+	})
+
+	Describe("MustCreate and MustSetFields", func() {
+		It("should panic on error", func() {
+			Ω(func() {
+				userFact.MustCreate(
+					Use(func(ctx Ctx) (interface{}, error) {
+						return nil, errors.New("boom")
+					}).For("FirstName"),
+				)
+			}).Should(Panic())
+
+			Ω(func() {
+				var u User
+				userFact.MustSetFields(
+					&u,
+					Use(func(ctx Ctx) (interface{}, error) {
+						return nil, errors.New("boom")
+					}).For("FirstName"),
+				)
+			}).Should(Panic())
+
+		})
 	})
 })
