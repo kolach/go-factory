@@ -143,30 +143,40 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 	}
 }
 
+func protogens(proto interface{}) []FieldGenFunc {
+	typ := reflect.TypeOf(proto)
+	if proto == reflect.Zero(typ).Interface() {
+		return nil
+	}
+
+	// if proto object is non-zero type,
+	// walk object fields and create field generator for each field with non-zero value
+	fieldGenFuncs := []FieldGenFunc{}
+	val := reflect.ValueOf(proto)
+	for i := 0; i < typ.NumField(); i++ {
+		sField := typ.Field(i)
+		fVal := val.Field(i).Interface()
+		if fVal != reflect.Zero(sField.Type).Interface() {
+			fieldGenFuncs = append(fieldGenFuncs, Use(fVal).For(sField.Name))
+		}
+	}
+	return fieldGenFuncs
+}
+
 // NewFactory is factory constructor
 func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
 	typ := reflect.TypeOf(proto)
+
+	if protogens := protogens(proto); len(protogens) > 0 {
+		fieldGenFuncs = append(protogens, fieldGenFuncs...)
+	}
 
 	f := &Factory{typ: typ}
 
 	// sample is used to validate during the factory construction process that all
 	// provided fields exist in a given model and can be set.
 	sample := f.new()
-
-	if proto != reflect.Zero(typ).Interface() {
-		// if proto object is non-zero type,
-		// walk object fields and create field generator for each field with non-zero value
-		val := reflect.ValueOf(proto)
-		for i := 0; i < typ.NumField(); i++ {
-			sField := typ.Field(i)
-			fVal := val.Field(i).Interface()
-			if fVal != reflect.Zero(sField.Type).Interface() {
-				makeFieldGen := Use(fVal).For(sField.Name)
-				f.fieldGens = append(f.fieldGens, makeFieldGen(sample)...)
-			}
-		}
-
-	}
+	// sample.Elem().Set(reflect.ValueOf(proto))
 
 	// create field generators
 	for _, makeFieldGen := range fieldGenFuncs {
