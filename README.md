@@ -264,6 +264,3 @@ userFactory := NewFactory(
   Use(true).For("Married"),
 )
 ```
-
-It's worth to mention that using the prototype object makes the factory work slower.
-The version that uses field generators is currently a prefferable way to set field values.
