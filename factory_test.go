@@ -2,7 +2,6 @@ package factory_test
 
 import (
 	"strings"
-	"testing"
 
 	randomdata "github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo"
@@ -27,6 +26,7 @@ type User struct {
 	Age       int
 	Married   bool
 	Address   *Address
+	Comment   string
 }
 
 var _ = Describe("Factory", func() {
@@ -121,7 +121,7 @@ var _ = Describe("Factory", func() {
 		Ω(u.Address.Street).Should(Equal("Mexicali"))
 	})
 
-	It("should allow override default generators", func() {
+	It("should allow override existing generators on create", func() {
 		u, ok := userFact.MustCreate(
 			Use("jane").For("Username"), // override username
 			Use(false).For("Married"),   // override married status
@@ -134,33 +134,15 @@ var _ = Describe("Factory", func() {
 		Ω(u.Married).Should(BeFalse())
 		Ω(u.Age).Should(Equal(10))
 	})
-})
 
-func BenchmarkProto(b *testing.B) {
-	f := NewFactory(User{
-		FirstName: "John",
-		LastName:  "Smith",
-		Username:  "john",
-		Email:     "john@hotmail.com",
-		Age:       30,
-		Married:   false,
+	It("should allow to define a new generator on create", func() {
+		u, ok := userFact.MustCreate(
+			Use("jane").For("Username"),        // override username
+			Use("Blahblahblah").For("Comment"), // new generator
+		).(*User)
+		Ω(ok).Should(BeTrue())
+		// now check it all
+		Ω(u.Username).Should(Equal("jane"))
+		Ω(u.Comment).Should(Equal("Blahblahblah")) // check new generator
 	})
-	for i := 0; i < b.N; i++ {
-		f.MustCreate()
-	}
-}
-
-func BenchmarkProtoEmpty(b *testing.B) {
-	f := NewFactory(
-		User{},
-		Use("John").For("FirstName"),
-		Use("Smith").For("LastName"),
-		Use("john").For("Username"),
-		Use("john@hotmail.com").For("Email"),
-		Use(30).For("Age"),
-		Use(false).For("Married"),
-	)
-	for i := 0; i < b.N; i++ {
-		f.MustCreate()
-	}
-}
+})

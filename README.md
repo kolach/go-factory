@@ -217,9 +217,24 @@ user := userFactory.MustCreate(
 ).(*User)
 ```
 
+```go
+var user User
+userFactory.MustSetFields(
+  &user,
+  Use(randomdata.FirstName, randomdata.Female).For("FirstName"),
+  Use(randomdata.LastName, randomdata.Female).For("LastName"),
+)
+```
+
+Overriding field generators on create is not optimal for creating big numbers of instances. As each call
+with the list of overrides creates a new factory behind the scene and then calls new factory's create methods.
+So depending on use case, for the performance reasons, it might be wise to first create a new factory
+with `Derive` method and then use it to create the object. See the chapter bellow.
+
 ### Creating a new factory deriving from existing one
 
-A new factory may be created deriving from existing one. Suppose we have a factory:
+A new factory may be created deriving from existing using `Derive` method.
+Suppose we have a factory:
 
 ```go
 addressFactory := NewFactory(
@@ -246,7 +261,7 @@ nyAddress := nyAddressFactory.MustCreate().(*Address)
 ## Prototype object
 
 The first parameter to `NewFactory` function is actually the prototype for the object to produce. It's not necessary must
-be an emprt object like in all the examples above. Here is an example then it has some values in fields:
+be an empty object like in all the examples above. Here is an example then it has some values in fields:
 
 ```go
 userFactory := NewFactory(
@@ -264,3 +279,30 @@ userFactory := NewFactory(
   Use(true).For("Married"),
 )
 ```
+
+It's not only equals but represents what really happens inside `NewFactory` function call. The proto object fields are
+walked and for each field with non-zero value a field generator is created.
+
+## Builder pattern to create a factory
+
+The package also supports a builder pattern to create the factory but looks too verbose to use in comparison to DSL syntax used above.
+Anyway here is an example:
+
+```go
+  User{},
+f := factory.NewBuilder(
+).Use("John").For(
+  "FirstName",
+).And("Smith", "Doe", "Milner").For(
+  "LastName",
+).And("mail@hotmail.com").For(
+  "Email",
+).And(randomdata.Number, 20, 50).For(
+  "Age",
+).And(true, false).For(
+  "Married",
+).Build()
+
+```
+
+where `And` is a synonim method for `Use`.
