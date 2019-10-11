@@ -169,6 +169,12 @@ func ProtoGens(proto interface{}) (fieldGenFuncs []FieldGenFunc) {
 	val := reflect.ValueOf(proto)
 	for i := 0; i < typ.NumField(); i++ {
 		sField := typ.Field(i)
+		// skip unexported fields. from godoc:
+		// PkgPath is the package path that qualifies a lower case (unexported)
+		// field name. It is empty for upper case (exported) field names.
+		if sField.PkgPath != "" {
+			continue
+		}
 		fVal := val.Field(i).Interface()
 		if fVal != reflect.Zero(sField.Type).Interface() {
 			fGen := Use(fVal).For(sField.Name)
