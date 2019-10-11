@@ -56,7 +56,7 @@ To assign some values to the fields the field generators must be registered in t
 
 ### Field generators
 
-The syntax to register a field generator is straight forward: `Use(<field-generator>).For(<field-name>)`.
+The syntax to register a field generator is straight forward: `Use(<field-generator>).For(<field-name>[,field-name2,field-name3...])`.
 
 ```go
 userFactory := NewFactory(
@@ -64,6 +64,16 @@ userFactory := NewFactory(
   Use(name).For("FirstName"),
   Use(name).For("LastName"),
   Use(name).For("Username"),
+)
+
+```
+
+Or in shorter form:
+
+```go
+userFactory := NewFactory(
+  User{},
+  Use(name).For("FirstName", "LastName", "Username"),
 )
 ```
 
@@ -100,6 +110,12 @@ func name(ctx Ctx) (interface{}, error) {
   }
 }
 ```
+
+Order matters! The field generators are triggered in a order of registration. In the example above it is:
+  1. FirstName
+  2. LastName
+  3. Username
+
 
 In many cases you do not need to write generator function. The `Use` function is smart enough to generate it for you.
 Let's now review alternative options:
@@ -187,6 +203,15 @@ userFactory := NewFactory(
   User{},
   Use(addressFactory).For("Address")
   Use(addressFactory).For("BillingAddress")
+)
+```
+
+There is a shorter form if the same generator is used for multiple fields:
+
+```go
+userFactory := NewFactory(
+  User{},
+  Use(addressFactory).For("Address", "BillingAddress")
 )
 ```
 
