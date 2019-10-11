@@ -114,9 +114,6 @@ func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFun
 
 // Create makes a new instance
 func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
-	// if len(fieldGenFuncs) > 0 {
-	// 	return f.Derive(fieldGenFuncs...).Create()
-	// }
 	// allocate a new instance
 	instance := f.new()
 	if err := f.setFields(instance, fieldGenFuncs...); err != nil {
