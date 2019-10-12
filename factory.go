@@ -156,13 +156,20 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 	}
 }
 
+// check
+func isZero(val reflect.Value) bool {
+	switch val.Kind() {
+	case reflect.Slice, reflect.Ptr, reflect.Map:
+		return val.IsNil()
+	default:
+		return val.Interface() == reflect.Zero(val.Type()).Interface()
+	}
+}
+
 // ProtoGens takes a proto object and decomposes it into slice of field generators
 // for each proto object field that has non-zero value.
 func ProtoGens(proto interface{}) (fieldGenFuncs []FieldGenFunc) {
 	typ := reflect.TypeOf(proto)
-	if proto == reflect.Zero(typ).Interface() {
-		return
-	}
 
 	// if proto object is non-zero type,
 	// walk object fields and create field generator for each field with non-zero value
@@ -175,9 +182,10 @@ func ProtoGens(proto interface{}) (fieldGenFuncs []FieldGenFunc) {
 		if sField.PkgPath != "" {
 			continue
 		}
-		fVal := val.Field(i).Interface()
-		if fVal != reflect.Zero(sField.Type).Interface() {
-			fGen := Use(fVal).For(sField.Name)
+
+		if fVal := val.Field(i); !isZero(fVal) {
+			iVal := fVal.Interface()
+			fGen := Use(iVal).For(sField.Name)
 			if fieldGenFuncs != nil {
 				fieldGenFuncs = append(fieldGenFuncs, fGen)
 			} else {
