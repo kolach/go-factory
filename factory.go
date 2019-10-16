@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-// Ctx is the context in wich the field value is being generated
+// Ctx is the context in which the field value is being generated
 type Ctx struct {
 	Field    string      // current field name for which the value is generated
 	Instance interface{} // the result instance to that the field belongs
@@ -168,7 +168,7 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 	}
 }
 
-// check is value is zero value
+// check if value is zero value
 func isZero(val reflect.Value) bool {
 	switch val.Kind() {
 	case reflect.Slice, reflect.Ptr, reflect.Map:
@@ -176,7 +176,7 @@ func isZero(val reflect.Value) bool {
 	default:
 		// otherwise allocate zero value
 		zero := reflect.Zero(val.Type())
-		// and copare
+		// and compare
 		return val.Interface() == zero.Interface()
 	}
 }
