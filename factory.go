@@ -17,8 +17,8 @@ type GeneratorFunc func(ctx Ctx) (interface{}, error)
 
 // fieldGen is a tuple that keeps together field name and generator function.
 type fieldGen struct {
-	fieldName  string
-	fieldIndex []int
+	fieldName  string // field name
+	fieldIndex []int  // field index, it's faster to find the field by index
 	generator  GeneratorFunc
 }
 
@@ -105,7 +105,7 @@ func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFun
 		// find field by index
 		field := elem.FieldByIndex(fg.fieldIndex)
 
-		// deref pointer if field value is not a pointer
+		// deref pointer if field is not a pointer kind
 		if field.Kind() != reflect.Ptr && valueof.Kind() == reflect.Ptr {
 			valueof = valueof.Elem()
 		}
