@@ -1,6 +1,12 @@
 # Factory
 
-Library to create various test objects.
+`go-factory` is a fixtures replacement based on user defined generator functions and includes features:
+
+* Use your own or 3rd party libraries as value generators
+* Use your already defined factory as a generator for complex objects
+* Derive your custom factory from existing one (aka factory inheritence)
+
+Reed the chapters bellow to know how to do it.
 
 ## Usage
 
@@ -31,7 +37,7 @@ userFact := NewFactory(User{}}
 And then you can use it like:
 
 ```go
-// allocate the object yourself and set the fields using factory
+// allocate the object yourself and set the fields using factory without loosing type infromation.
 var user User
 if err := userFact.SetFields(&user); err != nil {
   panic(err)
@@ -233,7 +239,7 @@ userFactory := NewFactory(
 ```
 
 And we need to generate a user with female first and last names. We can easily do it overriding the
-field generators on `Create` or `MustCreate` calls:
+field generators on `Create` or `MustCreate` calls (SetFields and MustSetFields work the same way):
 
 ```go
 user := userFactory.MustCreate(
@@ -251,36 +257,57 @@ userFactory.MustSetFields(
 )
 ```
 
-Overriding field generators on create is not optimal for creating big numbers of instances. As each call
-with the list of overrides creates a new factory behind the scene and then calls new factory's create methods.
-So depending on use case, for the performance reasons, it might be wise to first create a new factory
-with `Derive` method and then use it to create the object. See the chapter bellow.
-
 ### Creating a new factory deriving from existing one
 
-A new factory may be created deriving from existing using `Derive` method.
-Suppose we have a factory:
+Overriding field generators on `(Must)SetFields`, `(Must)Create` invocation is not optimal for creating a big number of objects.
+As each call with the list of overrides creates a new factory behind the scene and then calls the new factory's corresponding methods.
+To make it clear, suppose we have a loop that fills a slice of user objects:
 
 ```go
-addressFactory := NewFactory(
-  Address{},
-  Use(randomdata.Country, randomdata.FullCountry).For("Country"),
-  Use(randomdata.State, randomdata.Large).For("State"),
-  Use(randomdata.City).For("City"),
-  Use(randomdata.Street).For("Street"),
-)
+users := make([]*User, 0, 1000)
+for i := 0; i < 1000; i++ {
+  var user User
+  userFactory.MustSetFields(
+    &user,
+    Use(randomdata.FirstName, randomdata.Female).For("FirstName"),
+    Use(randomdata.LastName, randomdata.Female).For("LastName"),
+  )
+  users = append(users, &user)
+}
 ```
 
-And we want to have such a factory that generates US, New York addresses. It can be done with factory's `Derive` method:
+MustSetFields with list of generators is transformed into:
 
 ```go
-nyAddressFactory := addressFactory.Derive(
-  Use("US").For("Country"),
-  Use("New York").For("State"),
-  Use("New York").For("City"),
-)
+users := make([]*User, 0, 1000)
+for i := 0; i < 1000; i++ {
+  var user User
+  f := userFactory.Derive(
+    Use(randomdata.FirstName, randomdata.Female).For("FirstName"),
+    Use(randomdata.LastName, randomdata.Female).For("LastName"),
+  )
+  f.MustSetFields(&user)
+  users = append(users, &user)
+}
+```
 
-nyAddress := nyAddressFactory.MustCreate().(*Address)
+Where `Derive` is the method to create a new factory that inherits all its generator functions
+from original factory overriding only a few of them.
+
+So for performance reasons (to not create a new factory on each loop iteration) it's wise to rewrite
+original code into:
+
+```go
+users := make([]*User, 0, 1000)
+f := userFactory.Derive(
+  Use(randomdata.FirstName, randomdata.Female).For("FirstName"),
+  Use(randomdata.LastName, randomdata.Female).For("LastName"),
+)
+for i := 0; i < 1000; i++ {
+  var user User
+  f.MustSetFields(&user)
+  users = append(users, &user)
+}
 ```
 
 ## Prototype object
