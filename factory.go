@@ -12,20 +12,42 @@ type Ctx struct {
 	Factory  *Factory    // the reference to the Factory
 }
 
+// CallDepth is convinience method that returns factory call depth
+func (ctx Ctx) CallDepth() int {
+	return ctx.Factory.CallDepth()
+}
+
 // GeneratorFunc describes field generator signatures
 type GeneratorFunc func(ctx Ctx) (interface{}, error)
 
+// FieldGenFunc is the signature of field generator factory.
+type FieldGenFunc func(sample reflect.Value) []fieldGen
+
 // fieldGen is a tuple that keeps together field name and generator function.
 type fieldGen struct {
-	fieldName  string // field name
-	fieldIndex []int  // field index, it's faster to find the field by index
-	generator  GeneratorFunc
+	field     *reflect.StructField
+	generator GeneratorFunc
 }
 
 // Factory is the work horse of the package that produces instances
 type Factory struct {
 	typ       reflect.Type // type information about generated instances
 	fieldGens []fieldGen   // field / generator tuples
+	callDepth int          // factory call depth
+}
+
+// dive clones factory with incremented call depth
+func (f *Factory) dive() *Factory {
+	return &Factory{
+		typ:       f.typ,
+		fieldGens: f.fieldGens,
+		callDepth: f.callDepth + 1,
+	}
+}
+
+// CallDepth returns factory call depth
+func (f *Factory) CallDepth() int {
+	return f.callDepth
 }
 
 // Derive creates a new factory overriding fields generators
@@ -37,7 +59,7 @@ func (f *Factory) Derive(fieldGenFuncs ...FieldGenFunc) *Factory {
 	sample := f.new()
 	for _, fieldGenFunc := range fieldGenFuncs {
 		for _, fg := range fieldGenFunc(sample) {
-			newGensMap[fg.fieldName] = fg.generator
+			newGensMap[fg.field.Name] = fg.generator
 			newGenList = append(newGenList, fg)
 		}
 	}
@@ -47,8 +69,8 @@ func (f *Factory) Derive(fieldGenFuncs ...FieldGenFunc) *Factory {
 
 	// 1. copy or override original field generators
 	for i, fg := range f.fieldGens {
-		if gen, ok := newGensMap[fg.fieldName]; ok {
-			delete(newGensMap, fg.fieldName)
+		if gen, ok := newGensMap[fg.field.Name]; ok {
+			delete(newGensMap, fg.field.Name)
 			fg.generator = gen
 		}
 		fieldGens[i] = fg
@@ -56,12 +78,16 @@ func (f *Factory) Derive(fieldGenFuncs ...FieldGenFunc) *Factory {
 
 	// 2. append new field generators
 	for _, fg := range newGenList {
-		if _, ok := newGensMap[fg.fieldName]; ok {
+		if _, ok := newGensMap[fg.field.Name]; ok {
 			fieldGens = append(fieldGens, fg)
 		}
 	}
 
-	return &Factory{typ: f.typ, fieldGens: fieldGens}
+	return &Factory{
+		callDepth: f.callDepth, // inherit currenet call depth
+		fieldGens: fieldGens,   // set new generators
+		typ:       f.typ,
+	}
 }
 
 func (f *Factory) new() reflect.Value {
@@ -70,7 +96,44 @@ func (f *Factory) new() reflect.Value {
 
 // SetFields fills in the struct instance fields
 func (f *Factory) SetFields(i interface{}, fieldGenFuncs ...FieldGenFunc) error {
-	return f.setFields(reflect.ValueOf(i), fieldGenFuncs...)
+	if len(fieldGenFuncs) > 0 {
+		return f.Derive(fieldGenFuncs...).SetFields(i)
+	}
+
+	// create execution context
+	elem := reflect.ValueOf(i).Elem()
+
+	ctx := Ctx{Instance: i, Factory: f.dive()}
+
+	for _, fg := range f.fieldGens {
+		// bind field name o context
+		ctx.Field = fg.field.Name
+
+		// generate field value
+		val, err := fg.generator(ctx)
+		if err != nil {
+			return err
+		}
+
+		valueof := reflect.ValueOf(val)
+		// assign value to field
+
+		// find field by index
+		field := elem.FieldByIndex(fg.field.Index)
+
+		switch valueof.Kind() {
+		case reflect.Ptr:
+			// deref pointer if field is not a pointer kind
+			if field.Kind() != reflect.Ptr {
+				valueof = valueof.Elem()
+			}
+		case reflect.Invalid:
+			valueof = reflect.Zero(field.Type())
+		}
+
+		field.Set(valueof)
+	}
+	return nil
 }
 
 // MustSetFields calls SetFields and panics on error
@@ -80,46 +143,11 @@ func (f *Factory) MustSetFields(i interface{}, fieldGenFuncs ...FieldGenFunc) {
 	}
 }
 
-func (f *Factory) setFields(instance reflect.Value, fieldGenFuncs ...FieldGenFunc) error {
-	if len(fieldGenFuncs) > 0 {
-		return f.Derive(fieldGenFuncs...).setFields(instance)
-	}
-
-	// create execution context
-	elem, i := instance.Elem(), instance.Interface()
-
-	ctx := Ctx{Instance: i, Factory: f}
-
-	for _, fg := range f.fieldGens {
-		// bind field name o context
-		ctx.Field = fg.fieldName
-		// generate field value
-		val, err := fg.generator(ctx)
-		if err != nil {
-			return err
-		}
-
-		// assign value to field
-		valueof := reflect.ValueOf(val)
-
-		// find field by index
-		field := elem.FieldByIndex(fg.fieldIndex)
-
-		// deref pointer if field is not a pointer kind
-		if field.Kind() != reflect.Ptr && valueof.Kind() == reflect.Ptr {
-			valueof = valueof.Elem()
-		}
-
-		field.Set(valueof)
-	}
-	return nil
-}
-
 // Create makes a new instance
 func (f *Factory) Create(fieldGenFuncs ...FieldGenFunc) (interface{}, error) {
 	// allocate a new instance
 	instance := f.new()
-	if err := f.setFields(instance, fieldGenFuncs...); err != nil {
+	if err := f.SetFields(instance.Interface(), fieldGenFuncs...); err != nil {
 		return nil, err
 	}
 	return instance.Interface(), nil
@@ -134,10 +162,6 @@ func (f *Factory) MustCreate(fieldGenFuncs ...FieldGenFunc) interface{} {
 	return i
 }
 
-// FieldGenFunc is the signature of field generator factory.
-type FieldGenFunc func(sample reflect.Value) []fieldGen
-
-// WithGen adds generator function to factory.
 // WithGen returns a function that generates an array of field generators,
 // each of which has embedded check for field is present in the object being created and can be set.
 func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
@@ -162,7 +186,7 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 				panic(fmt.Errorf("field %q can not be set in %s", fieldName, sample.Type().Name()))
 			}
 
-			gens = append(gens, fieldGen{fieldName, sField.Index, g})
+			gens = append(gens, fieldGen{&sField, g})
 		}
 		return gens
 	}
