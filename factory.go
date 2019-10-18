@@ -21,19 +21,19 @@ func (ctx Ctx) CallDepth() int {
 type GeneratorFunc func(ctx Ctx) (interface{}, error)
 
 // FieldGenFunc is the signature of field generator factory.
-type FieldGenFunc func(sample reflect.Value) []fieldGen
+type FieldGenFunc func(sample reflect.Value) []fieldWithGen
 
-// fieldGen is a tuple that keeps together field name and generator function.
-type fieldGen struct {
-	field     *reflect.StructField
-	generator GeneratorFunc
+// fieldWithGen is a tuple that keeps together struct field and generator function.
+type fieldWithGen struct {
+	*reflect.StructField
+	gen GeneratorFunc
 }
 
 // Factory is the work horse of the package that produces instances
 type Factory struct {
-	typ       reflect.Type // type information about generated instances
-	fieldGens []fieldGen   // field / generator tuples
-	callDepth int          // factory call depth
+	typ       reflect.Type   // type information about generated instances
+	fieldGens []fieldWithGen // field / generator tuples
+	callDepth int            // factory call depth
 }
 
 // dive clones factory with incremented call depth
@@ -54,31 +54,31 @@ func (f *Factory) CallDepth() int {
 // with the list provided.
 func (f *Factory) Derive(fieldGenFuncs ...FieldGenFunc) *Factory {
 	// Create new generators and lookup map to fast find generator by firld name
-	newGenList := make([]fieldGen, 0, len(fieldGenFuncs))
+	newGenList := make([]fieldWithGen, 0, len(fieldGenFuncs))
 	newGensMap := make(map[string]GeneratorFunc)
 	sample := f.new()
 	for _, fieldGenFunc := range fieldGenFuncs {
 		for _, fg := range fieldGenFunc(sample) {
-			newGensMap[fg.field.Name] = fg.generator
+			newGensMap[fg.Name] = fg.gen
 			newGenList = append(newGenList, fg)
 		}
 	}
 
 	// result generators for a new factory
-	fieldGens := make([]fieldGen, len(f.fieldGens))
+	fieldGens := make([]fieldWithGen, len(f.fieldGens))
 
 	// 1. copy or override original field generators
 	for i, fg := range f.fieldGens {
-		if gen, ok := newGensMap[fg.field.Name]; ok {
-			delete(newGensMap, fg.field.Name)
-			fg.generator = gen
+		if gen, ok := newGensMap[fg.Name]; ok {
+			delete(newGensMap, fg.Name)
+			fg.gen = gen
 		}
 		fieldGens[i] = fg
 	}
 
 	// 2. append new field generators
 	for _, fg := range newGenList {
-		if _, ok := newGensMap[fg.field.Name]; ok {
+		if _, ok := newGensMap[fg.Name]; ok {
 			fieldGens = append(fieldGens, fg)
 		}
 	}
@@ -101,36 +101,36 @@ func (f *Factory) SetFields(i interface{}, fieldGenFuncs ...FieldGenFunc) error 
 	}
 
 	// create execution context
-	elem := reflect.ValueOf(i).Elem()
-
 	ctx := Ctx{Instance: i, Factory: f.dive()}
+
+	elem := reflect.ValueOf(i).Elem()
 
 	for _, fg := range f.fieldGens {
 		// bind field name o context
-		ctx.Field = fg.field.Name
+		ctx.Field = fg.Name
 
 		// generate field value
-		val, err := fg.generator(ctx)
+		val, err := fg.gen(ctx)
 		if err != nil {
 			return err
 		}
 
 		valueof := reflect.ValueOf(val)
-		// assign value to field
-
-		// find field by index
-		field := elem.FieldByIndex(fg.field.Index)
 
 		switch valueof.Kind() {
 		case reflect.Ptr:
 			// deref pointer if field is not a pointer kind
-			if field.Kind() != reflect.Ptr {
+			if fg.Type.Kind() != reflect.Ptr {
 				valueof = valueof.Elem()
 			}
 		case reflect.Invalid:
-			valueof = reflect.Zero(field.Type())
+			// for example we are here if fg.generator(ctx) returns (nil, nil)
+			valueof = reflect.Zero(fg.Type)
 		}
 
+		// find field by index
+		field := elem.FieldByIndex(fg.Index)
+		// and assign value to field
 		field.Set(valueof)
 	}
 	return nil
@@ -165,8 +165,8 @@ func (f *Factory) MustCreate(fieldGenFuncs ...FieldGenFunc) interface{} {
 // WithGen returns a function that generates an array of field generators,
 // each of which has embedded check for field is present in the object being created and can be set.
 func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
-	return func(sample reflect.Value) []fieldGen {
-		gens := []fieldGen{}
+	return func(sample reflect.Value) []fieldWithGen {
+		gens := []fieldWithGen{}
 		typ := sample.Elem().Type()
 		for _, fieldName := range fields {
 			sField, ok := typ.FieldByName(fieldName)
@@ -186,7 +186,7 @@ func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 				panic(fmt.Errorf("field %q can not be set in %s", fieldName, sample.Type().Name()))
 			}
 
-			gens = append(gens, fieldGen{&sField, g})
+			gens = append(gens, fieldWithGen{&sField, g})
 		}
 		return gens
 	}
@@ -247,7 +247,7 @@ func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
 	// sample is used to validate during the factory construction process that all
 	// provided fields exist in a given interface and can be set.
 	sample := reflect.New(typ)
-	fieldGens := make([]fieldGen, 0, len(fieldGenFuncs))
+	fieldGens := make([]fieldWithGen, 0, len(fieldGenFuncs))
 
 	// create field generators
 	for _, makeFieldGen := range fieldGenFuncs {
