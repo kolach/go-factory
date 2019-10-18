@@ -1,45 +1,77 @@
 package factory_test
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+
 	randomdata "github.com/Pallinder/go-randomdata"
 	. "github.com/kolach/go-factory"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-type Person struct {
-	Name   string  `json:"name"`
-	Father *Person `json:"father,omitempty"`
-	Mother *Person `json:"mother,omitempty"`
+type Color int
+
+const (
+	Red   = 1
+	Black = 0
+)
+
+type Node struct {
+	Parent *Node `json:"-"` // parent is excluded to avoid recursive calls
+	Left   *Node `json:"left"`
+	Right  *Node `json:"right"`
+	Color  int   `json:"color"`
+	Key    int   `json:"key"`
 }
 
-var _ = Describe("CrashTest", func() {
+// String for debug output
+func (n *Node) String() string {
+	b, _ := json.Marshal(n)
+	var buf bytes.Buffer
+	json.Indent(&buf, b, "", "\t")
+	return string(buf.Bytes())
+}
 
+var _ = Describe("RecursionTest", func() {
 	var (
-		f = NewFactory(
-			Person{},
-			Use(randomdata.FullName, randomdata.RandomGender).For("Name"),
+		treeFact = NewFactory(
+			Node{},
+			Use(randomdata.Number, 1, 100).For("Key"),
 			Use(func(ctx Ctx) (interface{}, error) {
-				if ctx.Factory.CallDepth() > 4 {
+				if ctx.CallDepth() >= randomdata.Number(2, 5) {
 					return nil, nil
 				}
-				return ctx.Factory.Create(Use(randomdata.FullName, randomdata.Male).For("Name"))
-			}).For("Father"),
-			Use(func(ctx Ctx) (interface{}, error) {
-				if ctx.Factory.CallDepth() > randomdata.Number(4, 8) {
-					return nil, nil
+				var child Node
+				err := ctx.Factory.SetFields(&child)
+				if err != nil {
+					return nil, err
 				}
-				return ctx.Factory.Create(Use(randomdata.FullName, randomdata.Female).For("Name"))
-			}).For("Mother"),
+				child.Parent = ctx.Instance.(*Node)
+				return &child, nil
+			}).For("Left", "Right"),
+			Use(func(ctx Ctx) (interface{}, error) {
+				node := ctx.Instance.(*Node)
+				if node.Parent == nil {
+					// root node is always black
+					return Black, nil
+				}
+				if node.Left == nil || node.Right == nil {
+					return Black, nil
+				}
+				return Red, nil
+			}).For("Color"),
 		)
 	)
 
-	It("should create family tree", func() {
-		p := f.MustCreate().(*Person)
-		Ω(p).ShouldNot(BeNil())
-		// b, _ := json.Marshal(p)
-		// var prettyJSON bytes.Buffer
-		// json.Indent(&prettyJSON, b, "", "\t")
-		// fmt.Println(string(prettyJSON.Bytes()))
+	It("should create red-black tree", func() {
+		root := treeFact.MustCreate().(*Node)
+
+		Ω(root).ShouldNot(BeNil())
+		Ω(root.Parent).Should(BeNil())
+		Ω(root.Color).Should(Equal(Black))
+
+		fmt.Println(root)
 	})
 })

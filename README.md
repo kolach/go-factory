@@ -335,6 +335,10 @@ userFactory := NewFactory(
 It's not only equals but represents what really happens inside `NewFactory` function call. The proto object fields are
 walked and for each field with non-zero value a field generator is created.
 
+## Recursion
+
+
+
 ## Builder pattern to create a factory
 
 The package also supports a builder pattern to create the factory but looks too verbose to use in comparison to DSL syntax used above.
