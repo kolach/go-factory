@@ -33,7 +33,7 @@ var _ = Describe("RecursionTest", func() {
 				self := ctx.Factory
 
 				if self.CallDepth() > randomdata.Number(2, 4) {
-					// exit recursion if factory call depth is greated than [2, 4)
+					// exit recursion if factory call depth is greater than [2, 4)
 					return nil, nil
 				}
 
