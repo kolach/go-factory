@@ -201,6 +201,10 @@ var _ = Describe("Factory", func() {
 		Ω(func() { userFact.Create(Use(1).For("i")) }).Should(Panic())
 	})
 
+	It("should panic on attempt to set not existing field", func() {
+		Ω(func() { userFact.Create(Use(1).For("foobar")) }).Should(Panic())
+	})
+
 	Describe("MustCreate and MustSetFields", func() {
 		It("should panic on error", func() {
 			Ω(func() {

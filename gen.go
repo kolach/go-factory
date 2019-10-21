@@ -7,8 +7,8 @@ import (
 	randomdata "github.com/Pallinder/go-randomdata"
 )
 
-// Value converts passed value into static generator
-func Value(i interface{}) GeneratorFunc {
+// adaptValue converts/adapts passed value into value generator
+func adaptValue(i interface{}) GeneratorFunc {
 	return func(Ctx) (interface{}, error) {
 		return i, nil
 	}
@@ -16,15 +16,9 @@ func Value(i interface{}) GeneratorFunc {
 
 var errorInterface = reflect.TypeOf((*error)(nil)).Elem()
 
-// Func tries to adapt arbitrary function to be used as generator
-func Func(f interface{}, args ...interface{}) GeneratorFunc {
+// adaptFunc tries to adapt arbitrary function to be used as generator
+func adaptFunc(f interface{}, args ...interface{}) GeneratorFunc {
 	val := reflect.ValueOf(f)
-
-	// panic if `f' is not a function
-	if val.Kind() != reflect.Func {
-		panic(fmt.Errorf("expect function type but was: %T", f))
-	}
-
 	typ := reflect.TypeOf(f)
 
 	// check input argumrnts
@@ -126,13 +120,13 @@ func NewGenerator(i interface{}, args ...interface{}) GeneratorFunc {
 	// if i is a function, use function to generator converter
 	if v := reflect.ValueOf(i); v.Kind() == reflect.Func {
 		// use Func adapter in case i is of Kind Func
-		return Func(i, args...)
+		return adaptFunc(i, args...)
 	}
 
 	// if it's just some static value, use value to generator converter
 	if len(args) == 0 {
 		// use static value generator if no other arguments provided
-		return Value(i)
+		return adaptValue(i)
 	}
 
 	// otherwise make generator function to randomly select from given options
