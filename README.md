@@ -93,9 +93,9 @@ Where `ctx` is the context in which the field value is being generated:
 
 ```go
 type Ctx struct {
-	Field    string      // current field name for which the value is generated
-	Instance interface{} // the result instance to that the field belongs
-	Factory  *Factory    // the reference to the Factory
+  Field    string      // current field name for which the value is generated
+  Instance interface{} // the result instance to that the field belongs
+  Factory  *Factory    // the reference to the Factory
 }
 
 ```
