@@ -443,8 +443,8 @@ factory = NewFactory(
 
 ## Thread safety
 
-None of the methods of Factory struct modify the factory internal state so once created it's totally fine to use factory objects
-in gorutines IF AND ONLY IF your generator functions are ALSO thread safe.
+None of the methods of factory object modify the internal state so once created it's totally fine to use the factory
+in multiple gorutines IF AND ONLY IF your generator functions are ALSO thread safe.
 
 ## Builder pattern to create a factory
 
