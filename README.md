@@ -188,6 +188,18 @@ userFactory := NewFactory(
 
 ```
 
+Of cause it heavily uses reflection to work so use canonical field generator functions if
+performance is critical:
+
+```go
+userFactory := NewFactory(
+  User{},
+  Use(func(Ctx) (interface{}, error) {
+    return randomdata.Number(25, 50), nil
+  }).For("Age"),
+)
+```
+
 #### Another factory as a field generator
 
 Suppose our `User` model has an `Address` field with is a struct with fields:
