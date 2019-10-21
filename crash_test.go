@@ -73,7 +73,7 @@ var _ = Describe("CrashTest", func() {
 		It("should work with custom generator functions", func() {
 			err := f.SetFields(&s, Use(func() Color { return Red }).For("Color"))
 			Ω(err).Should(BeNil())
-			Ω(s.Color).Should(Equal(White))
+			Ω(s.Color).Should(Equal(Red))
 		})
 
 		It("should work with canonical generator functions", func() {
