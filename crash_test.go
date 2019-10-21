@@ -43,17 +43,17 @@ func genPStr() *string {
 	return &str
 }
 
-var (
-	f = NewFactory(
-		S{PStr2: &str},
-		Use(genSlice).For("Slice"),
-		Use(genMap).For("Map"),
-		Use(genPStr).For("PStr"),
-		Use(Black, White).For("Color"),
-	)
-)
-
 var _ = Describe("CrashTest", func() {
+	var (
+		f = NewFactory(
+			S{PStr2: &str},
+			Use(genSlice).For("Slice"),
+			Use(genMap).For("Map"),
+			Use(genPStr).For("PStr"),
+			Use(Black, White).For("Color"),
+		)
+	)
+
 	It("should create S", func() {
 		i, err := f.Create()
 		Ω(err).Should(BeNil())

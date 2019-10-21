@@ -12,11 +12,6 @@ type Ctx struct {
 	Factory  *Factory    // the reference to the Factory
 }
 
-// CallDepth is convinience method that returns factory call depth
-func (ctx Ctx) CallDepth() int {
-	return ctx.Factory.CallDepth()
-}
-
 // GeneratorFunc describes field generator signatures
 type GeneratorFunc func(ctx Ctx) (interface{}, error)
 

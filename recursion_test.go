@@ -67,4 +67,24 @@ var _ = Describe("RecursionTest", func() {
 
 		// fmt.Println(root)
 	})
+
+	It("should increment call depth on each recursive call", func() {
+		callDepths := []int{}
+		factory.MustCreate(
+			Use(func(ctx Ctx) (interface{}, error) {
+				self := ctx.Factory
+				callDepths = append(callDepths, self.CallDepth())
+				if self.CallDepth() > 4 {
+					return nil, nil
+				}
+				kids := []*Node{&Node{}}
+				if err := self.SetFields(kids[0]); err != nil {
+					return nil, err
+				}
+				return kids, nil
+			}).For("Children"),
+		)
+
+		Ω(callDepths).Should(Equal([]int{1, 2, 3, 4, 5}))
+	})
 })
