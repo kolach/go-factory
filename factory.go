@@ -24,7 +24,7 @@ type fieldWithGen struct {
 	gen GeneratorFunc
 }
 
-// Factory is the work horse of the package that produces instances
+// Factory produces new objects according to specified generators
 type Factory struct {
 	typ       reflect.Type   // type information about generated instances
 	fieldGens []fieldWithGen // field / generator tuples
