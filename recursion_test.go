@@ -3,6 +3,8 @@ package factory_test
 import (
 	"bytes"
 	"encoding/json"
+	"runtime"
+	"sync"
 
 	randomdata "github.com/Pallinder/go-randomdata"
 	. "github.com/kolach/go-factory"
@@ -86,5 +88,25 @@ var _ = Describe("RecursionTest", func() {
 		)
 
 		Ω(callDepths).Should(Equal([]int{1, 2, 3, 4, 5}))
+	})
+
+	It("should be OK to use factory concurrently", func() {
+		numCPU := runtime.NumCPU()
+		if numCPU == 1 {
+			Skip("Num CPU is 0, skipping")
+		}
+		var wg sync.WaitGroup
+		for i := 0; i < numCPU; i++ {
+			wg.Add(1)
+			go func() {
+				for i := 0; i < 10; i++ {
+					var node Node
+					err := factory.SetFields(&node)
+					Ω(err).Should(BeNil())
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
 	})
 })

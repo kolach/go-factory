@@ -439,6 +439,10 @@ factory = NewFactory(
 )
 ```
 
+## Thread safety
+
+Once created it's totaly fine to use factory objects in gorutines. None of the methods of Factory struct modify the factory
+internal state.
 
 ## Builder pattern to create a factory
 

@@ -45,7 +45,7 @@ func (f *Factory) CallDepth() int {
 	return f.callDepth
 }
 
-// Derive creates a new factory overriding fields generators
+// Derive produces a new factory overriding field generators
 // with the list provided.
 func (f *Factory) Derive(fieldGenFuncs ...FieldGenFunc) *Factory {
 	// Create new generators and lookup map to fast find generator by firld name
