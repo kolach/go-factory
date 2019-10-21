@@ -8,7 +8,7 @@ jobs:
       # specify the version
       - image: circleci/golang:1.12
 
-    working_directory: /go-factory
+    working_directory: ~/go-factory
     steps:
       - checkout
       - run: go test all
