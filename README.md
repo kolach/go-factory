@@ -62,7 +62,19 @@ To assign some values to the fields the field generators must be registered in t
 
 ### Field generators
 
-The syntax to register a field generator is straight forward: `Use(<field-generator>).For(<field-name>[,field-name2,field-name3...])`.
+The syntax to register a field generator is either:
+
+```
+WithGen(<field-generator>, <field-name>[,firld-name2,field-name3...])
+```
+
+or DSL:
+
+```
+Use(<field-generator>).For(<field-name>[,field-name2,field-name3...])
+```
+
+For example:
 
 ```go
 userFactory := NewFactory(
@@ -71,7 +83,6 @@ userFactory := NewFactory(
   Use(name).For("LastName"),
   Use(name).For("Username"),
 )
-
 ```
 
 Or in shorter form:
