@@ -335,6 +335,100 @@ userFactory := NewFactory(
 It's not only equals but represents what really happens inside `NewFactory` function call. The proto object fields are
 walked and for each field with non-zero value a field generator is created.
 
+## Recursion
+
+You are totally free to use the factory recursively inside your custom generator functions. And here is how:
+
+```go
+type Node strict {
+  Child *Node
+}
+
+
+factory := NewFactory(
+  Node{},
+  Use(func(ctx Ctx) (interface{}, error) {
+    return ctx.Factory.Create()
+  }).For("Child")
+)
+```
+
+The context object has a self-reference to the factory object that can be used any time. But of cause you need to define
+when to stop and exit the recursion. The factory above if used will lead to program exit with stack overflow.
+
+It's up to you how and when you exit the recursive call. You can roll the dice `randomdata.Number(1, 6)` and exit if
+the result is less than `3`:
+
+```go
+factory := NewFactory(
+  Node{},
+  Use(func(ctx Ctx) (interface{}, error) {
+    self := ctx.Factory
+    if randomdata.Number(1, 6) < 3 {
+      return nil, nil
+    }
+    return self.Create()
+  }).For("Child")
+)
+```
+
+Or you can rely on `Factory.CallDepth()`. The method returns current call depth. It starts with 1 and increases on each
+recursive call.
+
+```go
+factory := NewFactory(
+  Node{},
+  Use(func(ctx Ctx) (interface{}, error) {
+    self := ctx.Factory
+    if self.CallDepth() > randomdata.Number(3, 6) {
+      return nil, nil
+    }
+    return self.Create()
+  }).For("Child")
+)
+```
+
+Let's go through more complex example. Suppose we have hierarchical tree model like:
+
+```go
+type Node struct {
+	Parent   *Node   `json:"-"` // parent is excluded to avoid recursive calls
+	Children []*Node `json:"children"`
+	Name     string  `json:"name"`
+}
+
+```
+
+And here is a factory that can generate it:
+
+```go
+factory = NewFactory(
+  Node{},
+  Use(randomdata.FirstName, randomdata.RandomGender).For("Name"),
+  Use(func(ctx Ctx) (interface{}, error) {
+    self := ctx.Factory
+
+    if self.CallDepth() > randomdata.Number(2, 4) {
+      // exit recursion if factory call depth is greater than [2, 4)
+      return nil, nil
+    }
+
+    node := ctx.Instance.(*Node)    // current node that's being created
+    size := randomdata.Number(1, 5) // number of children to make
+    kids := make([]*Node, size)     // slice to store children nodes
+
+    for i := 0; i < size; i++ {
+      kids[i] = &Node{Parent: node}
+      if err := self.SetFields(kids[i]); err != nil {
+        return nil, err
+      }
+    }
+    return kids, nil
+  }).For("Children"),
+		)
+```
+
+
 ## Builder pattern to create a factory
 
 The package also supports a builder pattern to create the factory but looks too verbose to use in comparison to DSL syntax used above.

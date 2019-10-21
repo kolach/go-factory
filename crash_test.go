@@ -11,13 +11,13 @@ var (
 )
 
 type S struct {
-	Ints  []int
+	Slice []int
 	Map   map[int]string
 	PStr  *string
 	PStr2 *string
 }
 
-func genInts() []int {
+func genSlice() []int {
 	return []int{1, 2, 3}
 }
 
@@ -36,7 +36,7 @@ func genPStr() *string {
 var (
 	f = NewFactory(
 		S{PStr2: &str},
-		Use(genInts).For("Ints"),
+		Use(genSlice).For("Slice"),
 		Use(genMap).For("Map"),
 		Use(genPStr).For("PStr"),
 	)
@@ -45,9 +45,23 @@ var (
 var _ = Describe("CrashTest", func() {
 	It("should factory S", func() {
 		s := f.MustCreate().(*S)
-		Ω(s.Ints).Should(Equal(genInts()))
+		Ω(s.Slice).Should(Equal(genSlice()))
 		Ω(s.Map).Should(Equal(genMap()))
 		Ω(*s.PStr).Should(Equal(*genPStr()))
 		Ω(*s.PStr2).Should(Equal(str))
+	})
+
+	It("should set nil to pointer fields", func() {
+		s := S{Map: map[int]string{1: "foo"}}
+		err := f.SetFields(
+			&s,
+			Use(nil).For("PStr"),
+			Use(nil).For("Slice"),
+			Use(nil).For("Map"), // check Map is reset
+		)
+		Ω(err).Should(BeNil())
+		Ω(s.PStr).Should(BeNil())
+		Ω(s.Slice).Should(BeNil())
+		Ω(s.Map).Should(BeNil())
 	})
 })

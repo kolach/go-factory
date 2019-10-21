@@ -8,14 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type Person struct {
-	FirstName string
-	LastName  string
-	Email     string
-	Age       int
-	Married   bool
-}
-
 var _ = Describe("Builder", func() {
 	It("should build factory", func() {
 		f := factory.NewBuilder(
