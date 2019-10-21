@@ -1,5 +1,7 @@
 # Factory
 
+[![CircleCI](https://circleci.com/gh/kolach/go-factory.svg?style=svg)](https://circleci.com/gh/kolach/go-factory)
+
 `go-factory` is a fixtures replacement based on user defined generator functions and includes features:
 
 * Use your own or 3rd party libraries as value generators.
