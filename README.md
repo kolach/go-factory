@@ -392,9 +392,9 @@ Let's go through more complex example. Suppose we have hierarchical tree model l
 
 ```go
 type Node struct {
-	Parent   *Node   `json:"-"` // parent is excluded to avoid recursive calls
-	Children []*Node `json:"children"`
-	Name     string  `json:"name"`
+  Parent   *Node   `json:"-"` // parent is excluded to avoid recursive calls
+  Children []*Node `json:"children"`
+  Name     string  `json:"name"`
 }
 
 ```
@@ -425,7 +425,7 @@ factory = NewFactory(
     }
     return kids, nil
   }).For("Children"),
-		)
+)
 ```
 
 
