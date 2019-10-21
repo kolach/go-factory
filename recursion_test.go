@@ -3,7 +3,6 @@ package factory_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 
 	randomdata "github.com/Pallinder/go-randomdata"
 	. "github.com/kolach/go-factory"
@@ -11,19 +10,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type Color int
-
-const (
-	Red   = 1
-	Black = 0
-)
-
 type Node struct {
-	Parent *Node `json:"-"` // parent is excluded to avoid recursive calls
-	Left   *Node `json:"left"`
-	Right  *Node `json:"right"`
-	Color  int   `json:"color"`
-	Key    int   `json:"key"`
+	Parent   *Node   `json:"-"` // parent is excluded to avoid recursive calls
+	Children []*Node `json:"children"`
+	Name     string  `json:"name"`
 }
 
 // String for debug output
@@ -36,42 +26,45 @@ func (n *Node) String() string {
 
 var _ = Describe("RecursionTest", func() {
 	var (
-		treeFact = NewFactory(
+		factory = NewFactory(
 			Node{},
-			Use(randomdata.Number, 1, 100).For("Key"),
+			Use(randomdata.FirstName, randomdata.RandomGender).For("Name"),
 			Use(func(ctx Ctx) (interface{}, error) {
-				if ctx.CallDepth() >= randomdata.Number(2, 5) {
+				self := ctx.Factory
+
+				if self.CallDepth() > randomdata.Number(2, 4) {
+					// exit recursion if factory call depth is greated than [2, 4)
 					return nil, nil
 				}
-				var child Node
-				err := ctx.Factory.SetFields(&child)
-				if err != nil {
-					return nil, err
+
+				node := ctx.Instance.(*Node)    // current node that's being created
+				size := randomdata.Number(1, 5) // number of children to make
+				kids := make([]*Node, size)     // slice to store children nodes
+
+				for i := 0; i < size; i++ {
+					kids[i] = &Node{Parent: node}
+					if err := self.SetFields(kids[i]); err != nil {
+						return nil, err
+					}
 				}
-				child.Parent = ctx.Instance.(*Node)
-				return &child, nil
-			}).For("Left", "Right"),
-			Use(func(ctx Ctx) (interface{}, error) {
-				node := ctx.Instance.(*Node)
-				if node.Parent == nil {
-					// root node is always black
-					return Black, nil
-				}
-				if node.Left == nil || node.Right == nil {
-					return Black, nil
-				}
-				return Red, nil
-			}).For("Color"),
+				return kids, nil
+			}).For("Children"),
 		)
 	)
 
-	It("should create red-black tree", func() {
-		root := treeFact.MustCreate().(*Node)
+	It("should create valid tree", func() {
+		root := factory.MustCreate().(*Node)
 
 		Ω(root).ShouldNot(BeNil())
 		Ω(root.Parent).Should(BeNil())
-		Ω(root.Color).Should(Equal(Black))
+		Ω(len(root.Children)).Should(BeNumerically(">", 0))
 
-		fmt.Println(root)
+		child0 := root.Children[0]
+
+		Ω(child0.Parent).Should(Equal(root))
+		Ω(len(child0.Children)).Should(BeNumerically(">", 0))
+		Ω(child0.Children[0].Parent).Should(Equal(child0))
+
+		// fmt.Println(root)
 	})
 })
