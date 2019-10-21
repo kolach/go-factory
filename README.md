@@ -2,9 +2,11 @@
 
 `go-factory` is a fixtures replacement based on user defined generator functions and includes features:
 
-* Use your own or 3rd party libraries as value generators
-* Use your already defined factory as a generator for complex objects
-* Derive your custom factory from existing one (aka factory inheritence)
+* Use your own or 3rd party libraries as value generators.
+* Use your already defined factory as a generator for more complex scenarios.
+* Derive your custom factory from existing one (aka factory inheritance).
+* Call your factory recursively.
+* Factory objects are thread safe.
 
 Reed the chapters bellow to know how to do it.
 
@@ -37,7 +39,7 @@ userFact := NewFactory(User{}}
 And then you can use it like:
 
 ```go
-// allocate the object yourself and set the fields using factory without loosing type infromation.
+// allocate the object yourself and set the fields using factory without loosing type information.
 var user User
 if err := userFact.SetFields(&user); err != nil {
   panic(err)
@@ -441,7 +443,7 @@ factory = NewFactory(
 
 ## Thread safety
 
-Once created it's totaly fine to use factory objects in gorutines. None of the methods of Factory struct modify the factory
+Once created it's totally fine to use factory objects in gorutines. None of the methods of Factory struct modify the factory
 internal state.
 
 ## Builder pattern to create a factory
@@ -466,4 +468,4 @@ f := factory.NewBuilder(
 
 ```
 
-where `And` is a synonim method for `Use`.
+Where `And` = `Use`.
