@@ -98,7 +98,7 @@ userFactory := NewFactory(
 )
 ```
 
-Where `name` is a reference to generator function. In most canonical form it has a signature:
+Where `name` is a reference to generator function and has signature:
 
 ```go
 type GeneratorFunc func(ctx Ctx) (interface{}, error)
@@ -190,7 +190,7 @@ userFactory := NewFactory(
 
 ```
 
-Of cause it heavily uses reflection to work so use canonical field generator functions if
+Of cause it heavily uses reflection to work so use standard field generator function signature if
 performance is critical:
 
 ```go
