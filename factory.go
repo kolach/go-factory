@@ -162,23 +162,24 @@ func (f *Factory) MustCreate(fieldGenFuncs ...FieldGenFunc) interface{} {
 func WithGen(g GeneratorFunc, fields ...string) FieldGenFunc {
 	return func(sample reflect.Value) []fieldWithGen {
 		gens := []fieldWithGen{}
-		typ := sample.Elem().Type()
+		elem := sample.Elem()
+		typ := elem.Type()
 		for _, fieldName := range fields {
 			sField, ok := typ.FieldByName(fieldName)
 			if !ok {
-				panic(fmt.Errorf("field %q not found in %s", fieldName, sample.Type().Name()))
+				panic(fmt.Errorf("field %q not found in %s", fieldName, typ.Name()))
 			}
 
 			// check that field exists in generated model
-			field := sample.Elem().FieldByIndex(sField.Index)
+			field := elem.FieldByIndex(sField.Index)
 
 			if !field.IsValid() {
-				panic(fmt.Errorf("field %q is not valid in %s", fieldName, sample.Type().Name()))
+				panic(fmt.Errorf("field %q is not valid in %s", fieldName, typ.Name()))
 			}
 
 			// and can be set
 			if !field.CanSet() {
-				panic(fmt.Errorf("field %q can not be set in %s", fieldName, sample.Type().Name()))
+				panic(fmt.Errorf("field %q can not be set in %s", fieldName, typ.Name()))
 			}
 
 			gens = append(gens, fieldWithGen{&sField, g})

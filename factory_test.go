@@ -1,4 +1,4 @@
-package factory_test
+package factory_test)
 
 import (
 	"errors"
@@ -172,7 +172,7 @@ var _ = Describe("Factory", func() {
 				}).For("FirstName"),
 			)
 		}
-		Ω(call).Should(Panic())
+		Ω(call).Should(PanicWithError(errors.New("expect second returned type implement error but found: int")))
 	})
 
 	It("should panic if generator function return more than 2 values", func() {
@@ -183,7 +183,7 @@ var _ = Describe("Factory", func() {
 				}).For("FirstName"),
 			)
 		}
-		Ω(call).Should(Panic())
+		Ω(call).Should(PanicWithError(errors.New("expect function to return 1 or 2 values but was: 3")))
 	})
 
 	It("should panic if generator function arity is not satisfied", func() {
@@ -194,15 +194,15 @@ var _ = Describe("Factory", func() {
 				}, 4).For("FirstName"),
 			)
 		}
-		Ω(call).Should(Panic())
+		Ω(call).Should(PanicWithError(errors.New("not enough input arguments to make a function call. Expected: 2, was: 1")))
 	})
 
 	It("should panic on attempt to set unexported field", func() {
-		Ω(func() { userFact.Create(Use(1).For("i")) }).Should(Panic())
+		Ω(func() { userFact.Create(Use(1).For("i")) }).Should(PanicWithError(errors.New("field \"i\" can not be set in User")))
 	})
 
 	It("should panic on attempt to set not existing field", func() {
-		Ω(func() { userFact.Create(Use(1).For("foobar")) }).Should(Panic())
+		Ω(func() { userFact.Create(Use(1).For("foobar")) }).Should(PanicWithError(errors.New("field \"foobar\" not found in User")))
 	})
 
 	Describe("MustCreate and MustSetFields", func() {
@@ -213,7 +213,7 @@ var _ = Describe("Factory", func() {
 						return nil, errors.New("boom")
 					}).For("FirstName"),
 				)
-			}).Should(Panic())
+			}).Should(PanicWithError(errors.New("boom")))
 
 			Ω(func() {
 				var u User
@@ -223,7 +223,7 @@ var _ = Describe("Factory", func() {
 						return nil, errors.New("boom")
 					}).For("FirstName"),
 				)
-			}).Should(Panic())
+			}).Should(PanicWithError(errors.New("boom")))
 
 		})
 	})

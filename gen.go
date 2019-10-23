@@ -35,7 +35,7 @@ func adaptFunc(f interface{}, args ...interface{}) GeneratorFunc {
 
 	// check second output parameter implements error interface
 	if typ.NumOut() == 2 && !typ.Out(1).Implements(errorInterface) {
-		panic(fmt.Errorf("expect second returned type implements error: %+v", typ.Out(1)))
+		panic(fmt.Errorf("expect second returned type implement error but found: %+v", typ.Out(1)))
 	}
 
 	// prepare input arguments
