@@ -10,7 +10,7 @@
 * Call your factory recursively.
 * Factory objects are thread safe.
 
-Reed the chapters bellow to know how to do it.
+Read the chapters bellow to know how to do it.
 
 ## Usage
 
