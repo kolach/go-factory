@@ -1,6 +1,6 @@
 # Factory
 
-[![CircleCI](https://circleci.com/gh/kolach/go-factory.svg?style=svg)](https://circleci.com/gh/kolach/go-factory)
+[![CircleCI](https://circleci.com/gh/kolach/go-factory.svg?style=svg)](https://circleci.com/gh/kolach/go-factory) [![codecov](https://codecov.io/gh/kolach/go-factory/branch/master/graph/badge.svg)](https://codecov.io/gh/kolach/go-factory)
 
 `go-factory` is a fixtures replacement based on user defined generator functions and includes features:
 
