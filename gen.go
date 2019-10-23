@@ -3,6 +3,7 @@ package factory
 import (
 	"fmt"
 	"reflect"
+	"sync/atomic"
 
 	randomdata "github.com/Pallinder/go-randomdata"
 )
@@ -54,10 +55,11 @@ func adaptFunc(f interface{}, args ...interface{}) GeneratorFunc {
 
 // Seq returns function that sequentially generates integers in interval [0, max)
 func Seq(max int) func() int {
-	n := 0
+	n := int64(0)
 	return func() int {
-		defer func() { n++ }()
-		return n % max
+		x := int(n)
+		atomic.AddInt64(&n, 1)
+		return x % max
 	}
 }
 
