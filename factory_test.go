@@ -1,4 +1,4 @@
-package factory_test)
+package factory_test
 
 import (
 	"errors"
