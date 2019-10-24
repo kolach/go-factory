@@ -201,9 +201,9 @@ func isZero(val reflect.Value) bool {
 	}
 }
 
-// ProtoGens takes a proto object and decomposes it into slice of field generators
+// protoGens takes a proto object and decomposes it into slice of field generators
 // for each proto object field that has non-zero value.
-func ProtoGens(proto interface{}) (fieldGenFuncs []FieldGenFunc) {
+func protoGens(proto interface{}) (fieldGenFuncs []FieldGenFunc) {
 	typ := reflect.TypeOf(proto)
 
 	// if proto object is non-zero type,
@@ -235,7 +235,7 @@ func ProtoGens(proto interface{}) (fieldGenFuncs []FieldGenFunc) {
 func NewFactory(proto interface{}, fieldGenFuncs ...FieldGenFunc) *Factory {
 	typ := reflect.TypeOf(proto)
 
-	if protogens := ProtoGens(proto); len(protogens) > 0 {
+	if protogens := protoGens(proto); len(protogens) > 0 {
 		// prepend field generators with proto generators if there are some
 		fieldGenFuncs = append(protogens, fieldGenFuncs...)
 	}
